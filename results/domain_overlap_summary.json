@@ -1,0 +1,11 @@
+{
+    "tranco_snapshot": "Q2464",
+    "tranco_domains": 1000000,
+    "phishing_urls_processed": 789054,
+    "phishing_urls_with_registered_domain": 775964,
+    "phishing_urls_without_registered_domain": 13090,
+    "unique_phishing_registered_domains": 320967,
+    "overlapping_domains": 2817,
+    "phishing_urls_on_overlapping_domains": 110003,
+    "phishing_urls_on_non_overlapping_domains": 665961
+}

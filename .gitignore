@@ -6,3 +6,4 @@ data/processed/
 *.pkl
 *.joblib
 .env
+results/overlapping_domains.csv
