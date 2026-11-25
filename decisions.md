@@ -460,3 +460,147 @@ Five features excluded in the reduced experiment:
 Dataset structure, missing labels, duplicates, class-specific patterns, grouping behaviour, and preliminary baseline performance have been investigated.
 
 The corrected grouped experiments are retained as preliminary results. Further validation is required before final model selection or performance claims.
+
+## 13. Day 4 - External URL Evaluation and Shortcut Analysis (25 November 2026)
+
+### Dataset overlap and preparation
+
+- LegitPhish dataset after cleaning: 100,872 records.
+- Label distribution: 63,492 phishing (Class 0) and 37,380 legitimate (Class 1).
+- PhiUSIIL dataset: 235,795 raw records and 235,370 unique URLs.
+- Duplicate records in PhiUSIIL: 425.
+- Exact URL overlap between datasets: 36,935.
+- Shared domains identified: 36,530.
+- Exact overlaps in the sampled subset: 9,339.
+- Domain-disjoint external evaluation records: 42,882.
+
+### External evaluation
+
+The 22-feature Random Forest model produced the following domain-disjoint external results:
+
+| Metric | Result |
+|---|---:|
+| Accuracy | 98.00% |
+| Balanced accuracy | 97.66% |
+| Phishing recall | 95.31% |
+| ROC-AUC | 99.65% |
+
+### Shortcut analysis
+
+Additional feature-removal experiments showed substantial dependence on particular URL characteristics:
+
+| Experiment | Phishing recall |
+|---|---:|
+| Full feature model | 95.31% |
+| Excluding the top three features | 47.68% |
+| Excluding HTTPS-related information | 46.26% |
+| Host-only features | 44.51% |
+
+The host-only model achieved 76.15% accuracy, 72.11% balanced accuracy, and 79.96% ROC-AUC.
+
+### Interpretation and limitations
+
+- The external evaluation produced high aggregate scores, but these must not be interpreted as proof of generalization.
+- The datasets contain substantial exact URL and domain overlap.
+- HTTPS usage and URL path characteristics show strong class-specific patterns.
+- Ablation results indicate that the model relies heavily on these characteristics.
+- The external legitimate examples have distributional differences from phishing examples, including HTTPS and root-path patterns.
+- The evaluation therefore remains affected by dataset construction and collection artifacts.
+- Accuracy and low false-positive counts must not be presented without these limitations.
+
+### Day 4 conclusion
+
+The external evaluation and shortcut analysis identified important limitations in the URL-feature approach. The next benchmark moves to registered-domain-level observations to reduce dependence on URL schemes and paths.
+
+## 14. Day 5 - Registered-Domain Benchmark and Three-Zone Decisions (25 November 2026)
+
+### Dataset preparation
+
+- Phishing source: Phishing.Database active feed.
+- Legitimate-domain candidate source: Tranco snapshot Q2464.
+- Registered domains were extracted locally using tldextract.
+- Domains without an extractable registered domain were excluded.
+- Duplicate registered domains were removed within the phishing candidate pool.
+- Tranco domains overlapping with the phishing feed were removed.
+- This benchmark used tldextract's default public-suffix configuration without private-domain rules; its overlap count is not directly comparable to the earlier private-domain-aware analysis.
+- No phishing URLs were opened or visited.
+
+| Metric | Result |
+|---|---:|
+| Extracted unique phishing domains available | 217,377 |
+| Tranco domains available before overlap removal | 1,000,000 |
+| Overlapping Tranco domains removed | 3,198 |
+| Tranco domains remaining | 996,802 |
+| Selected phishing domains | 150,000 |
+| Selected legitimate-domain candidates | 150,000 |
+| Total selected records | 300,000 |
+
+### Dataset splitting
+
+GroupShuffleSplit was used to separate domain-name groups, formed by removing digits from the name component, across training, validation, and testing.
+
+| Split | Records |
+|---|---:|
+| Training | 192,742 |
+| Validation | 47,410 |
+| Testing | 59,848 |
+
+### Model comparison
+
+Two models were evaluated on the held-out test set.
+
+| Model | ROC-AUC | PR-AUC |
+|---|---:|---:|
+| Character n-gram Logistic Regression | 0.8516 | 0.8717 |
+| Gradient Boosting with four numerical features | 0.6606 | 0.6801 |
+
+The character n-gram model performed better than the numerical-feature baseline in this experiment.
+
+### Validation-derived decision thresholds
+
+The three-zone decision system uses thresholds selected on the validation set:
+
+- Deliver: score below 0.1160.
+- Human review: score from 0.1160 up to, but not including, 0.9244.
+- Quarantine: score at or above 0.9244.
+
+### Held-out test decision distribution
+
+| Actual class | Quarantine | Human review | Deliver |
+|---|---:|---:|---:|
+| Phishing | 8,799 | 20,496 | 595 |
+| Legitimate | 91 | 23,331 | 6,536 |
+| **Total** | **8,890** | **43,827** | **7,131** |
+
+| Decision zone | Share of test set |
+|---|---:|
+| Auto-quarantine | 14.85% |
+| Human review | 73.23% |
+| Deliver | 11.92% |
+
+### Saved artifacts
+
+- `src/host_benchmark.py` - registered-domain benchmark implementation.
+- `models/domain_model.joblib` - trained character n-gram vectorizer and Logistic Regression model.
+- `models/thresholds.json` - validation-derived decision thresholds.
+- `results/day5_metrics.json` - saved Logistic Regression metrics and decision-zone proportions.
+
+The trained model is excluded from Git through the existing `*.joblib` ignore rule. The JSON metrics and thresholds are retained as reproducibility evidence.
+
+### Interpretation and limitations
+
+- Registered-domain-level evaluation removes URL scheme and path information from the model input.
+- Character n-grams performed better than the four numerical domain features in this benchmark.
+- The test set is balanced by construction and does not represent the natural prevalence of phishing in incoming email.
+- Tranco popularity-ranked domains are legitimate-domain candidates, not independently verified benign domains.
+- The phishing feed also contains source-derived labels that have not been independently verified.
+- The large human-review proportion indicates that the current thresholds send most test examples for manual assessment.
+- The benchmark does not establish real-world email detection performance.
+- The deprecated `registered_domain` property generated a warning, but did not prevent successful execution or artifact generation.
+
+### Day 5 conclusion
+
+The registered-domain benchmark establishes a character-based domain classification baseline and a validation-derived three-zone decision mechanism. The results will be treated as an initial benchmark rather than a production-performance claim.
+
+The next development stage will focus on email-content features and combining URL and text signals into the PhishGuard detection workflow.
+
