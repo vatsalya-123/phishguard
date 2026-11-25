@@ -9,3 +9,4 @@ ipykernel
 tldextract
 
 requests
+pytest
